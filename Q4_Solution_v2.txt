@@ -1,0 +1,132 @@
+#Siddhartha Murthy#
+#Q4 .Geo based analysis:
+#        Country based tweets count.
+#        Top countries in terms of Tweets Volume.
+#        List of top 15 countries in terms of tweet counts.
+
+
+#A Connecting to Twitter Streaming API and downloading data
+
+#Import the necessary methods from tweepy library
+from tweepy.streaming import StreamListener
+from tweepy import OAuthHandler
+from tweepy import Stream
+
+import os
+import tweepy
+from tweepy import OAuthHandler
+import socket
+import json
+
+#Variables that contains the user credentials to access Twitter API 
+consumer_key = '7iBdh4f6N28yRK5c9t3dDfzgF'
+consumer_secret = 'lnC2IIvXrs8qiPshSlo73OMe7v7NKTIXOu3402ODtL0Lp0uFzh'
+access_token = '912715498810257408-aoO3owMw5lTQoqxNrN8pVGWgzrvyZUW'
+access_token_secret = 'gTFRWYgYCfU3X2JGOQ4hW79W779FqWhCAHwsGC3dsWYmf'
+ 
+
+
+#This is a basic listener that just prints received tweets to stdout.
+#class StdOutListener(StreamListener):
+class TweetsListener(StreamListener):
+ 
+    def __init__(self, csocket):
+        self.client_socket = csocket
+ 
+    def on_data(self, data):
+        try:
+            print(data.split('\n'))
+            self.client_socket.send(data)
+            return True
+        except BaseException as e:
+            print("Error on_data: %s" % str(e))
+        return True
+ 
+    def on_error(self, status):
+        print(status)
+        return True
+ 
+def sendData(c_socket):
+    auth = OAuthHandler(consumer_key, consumer_secret)
+    auth.set_access_token(access_token, access_secret)
+ 
+    twitter_stream = Stream(auth, TweetsListener(c_socket))
+#    twitter_stream.filter(track=['trump'])
+
+
+if __name__ == "__main__":
+    s = socket.socket()     # Create a socket object
+    host = "172.31.20.58"      # Get local machine name
+    port = 5558             # Reserve a port for your service.
+    s.bind((host, port))    # Bind to the port
+ 
+    print("Listening on port: %s" % str(port))
+ 
+    s.listen(5)                 # Now wait for client connection.
+    c, addr = s.accept()        # Establish connection with client.
+ 
+    print( "Received request from: " + str( addr ) )
+ 
+    sendData( c )
+
+
+    #This handles Twitter authetification and the connection to Twitter Streaming API
+    l = StdOutListener()
+    auth = OAuthHandler(consumer_key, consumer_secret)
+    auth.set_access_token(access_token, access_token_secret)
+    stream = Stream(auth, l)
+
+    #This line filter Twitter Streams to capture data by the keywords 'python', 'javascript', 'ruby'
+    stream.filter(track=['python', 'javascript', 'ruby'])
+
+
+#B. Reading and Understanding the data
+
+import json
+import pandas as pd
+import matplotlib.pyplot as plt
+
+tweets_data_path = 'twitter_data.txt'
+
+tweets_data = []
+tweets_file = open(tweets_data_path, "r")
+for line in tweets_file:
+    try:
+        tweet = json.loads(line)
+        tweets_data.append(tweet)
+    except:
+        continue
+
+#count total number of tweets
+print len(tweets_data)
+
+#create an empty DataFrame called tweets 
+tweets = pd.DataFrame()
+
+#add 3 columns to the tweets DataFrame called text, lang, and country.
+tweets['text'] = map(lambda tweet: tweet['text'], tweets_data)
+tweets['lang'] = map(lambda tweet: tweet['lang'], tweets_data)
+tweets['country'] = map(lambda tweet: tweet['place']['country'] if tweet['place'] != None else None, tweets_data)
+
+tweets_by_lang = tweets['lang'].value_counts()
+
+# charts#1 Top 5 languages in which the tweets were written
+# chart#2 Top 15 countries from which the tweets 
+
+fig, ax = plt.subplots()
+ax.tick_params(axis='x', labelsize=15)
+ax.tick_params(axis='y', labelsize=10)
+ax.set_xlabel('Languages', fontsize=15)
+ax.set_ylabel('Number of tweets' , fontsize=15)
+ax.set_title('Top 5 languages', fontsize=15, fontweight='bold')
+tweets_by_lang[:5].plot(ax=ax, kind='bar', color='red')
+
+tweets_by_country = tweets['country'].value_counts()
+
+fig, ax = plt.subplots()
+ax.tick_params(axis='x', labelsize=15)
+ax.tick_params(axis='y', labelsize=10)
+ax.set_xlabel('Countries', fontsize=15)
+ax.set_ylabel('Number of tweets' , fontsize=15)
+ax.set_title('Top 15 countries', fontsize=15, fontweight='bold')
+tweets_by_country[:15].plot(ax=ax, kind='bar', color='blue')
